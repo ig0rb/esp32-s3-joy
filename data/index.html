@@ -1,0 +1,1421 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ESP32 Joypad</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #d9e2ec;
+      --accent: #0f766e;
+      --accent-soft: #ccfbf1;
+      --danger: #b91c1c;
+      --warning: #b45309;
+      --shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(15, 118, 110, 0.12), transparent 32%),
+        linear-gradient(180deg, #eef5ff 0%, var(--bg) 45%, #edf3f9 100%);
+      color: var(--text);
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px 14px 40px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #0f766e, #155e75);
+      color: #fff;
+      border-radius: 18px;
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 18px;
+    }
+
+    .hero h1 {
+      margin: 0 0 6px;
+      font-size: 1.8rem;
+    }
+
+    .hero p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.84);
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .col {
+      flex: 1 1 320px;
+      min-width: 0;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid rgba(217, 226, 236, 0.9);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2,
+    .card h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 1.05rem;
+    }
+
+    .statusline,
+    .subline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .subline {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+    }
+
+    .badge-ok {
+      background: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .badge-warn {
+      background: #fef3c7;
+      color: var(--warning);
+    }
+
+    .badge-off {
+      background: #e5e7eb;
+      color: #4b5563;
+    }
+
+    .grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .axis-grid {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    .axis-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fbfdff;
+    }
+
+    .axis-header,
+    .axis-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .axis-meta {
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .meter {
+      height: 10px;
+      background: #dbe7f0;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+
+    .meter > span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, #0f766e, #14b8a6);
+      border-radius: inherit;
+      transition: width 120ms linear;
+    }
+
+    .meter-label {
+      font-size: 0.84rem;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(62px, 1fr));
+      gap: 8px;
+    }
+
+    .button-pill {
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      padding: 10px 6px;
+      text-align: center;
+      background: #fff;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.84rem;
+    }
+
+    .button-pill.active {
+      background: #111827;
+      border-color: #111827;
+      color: #fff;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    button,
+    select,
+    input {
+      font: inherit;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    .btn-danger {
+      background: #fee2e2;
+      color: var(--danger);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 520px;
+    }
+
+    th,
+    td {
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      padding: 10px 8px;
+      font-size: 0.92rem;
+      vertical-align: middle;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    input[type="number"],
+    select {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: #fff;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin-top: 10px;
+    }
+
+    .status-box {
+      min-height: 22px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .channel-editor-grid {
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }
+
+    .channel-editor {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      background: #fbfdff;
+    }
+
+    .channel-editor-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .channel-editor-title {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .channel-fields {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 0.84rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .field-span-2 {
+      grid-column: 1 / -1;
+    }
+
+    .mode-help {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    .selector-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .selector-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: end;
+    }
+
+    .selector-empty {
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      background: #fff;
+    }
+
+    .btn-small {
+      padding: 8px 12px;
+      border-radius: 10px;
+    }
+
+    @media (max-width: 640px) {
+      .hero {
+        padding: 16px;
+      }
+
+      .container {
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+
+      .channel-fields,
+      .selector-row {
+        grid-template-columns: 1fr;
+      }
+
+      .field-span-2 {
+        grid-column: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="hero">
+      <h1>ESP32 Joypad Control</h1>
+      <p>Monitor HID in tempo reale, calibrazione assi e preview dei canali PPM.</p>
+    </section>
+
+    <section class="row">
+      <div class="col">
+        <div class="card">
+          <h2>Stato</h2>
+          <div class="statusline">
+            <span id="apName" class="badge badge-ok">AP</span>
+            <span id="linkState" class="badge badge-off">Dispositivo assente</span>
+            <span id="saveState" class="badge badge-off">Config non caricata</span>
+          </div>
+          <p id="deviceMeta" class="subline" style="margin-top:10px;">In attesa dati...</p>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card">
+          <h2>Azioni</h2>
+          <div class="toolbar">
+            <button id="saveBtn" class="btn btn-primary" type="button">Salva config</button>
+            <button id="backupBtn" class="btn btn-secondary" type="button">Backup JSON</button>
+            <button id="restoreBtn" class="btn btn-secondary" type="button">Restore backup</button>
+            <button id="zeroBtn" class="btn btn-secondary" type="button">Azzera su posizione attuale</button>
+            <button id="calibrateBtn" class="btn btn-secondary" type="button">Calibra ADC</button>
+            <button id="resetCalibrationBtn" class="btn btn-secondary" type="button">Reset calibrazione ADC</button>
+            <button id="resetBtn" class="btn btn-danger" type="button">Reset default</button>
+          </div>
+          <input id="restoreFile" type="file" accept=".json,application/json" hidden>
+          <div id="statusBox" class="status-box"></div>
+          <p class="note">Trim, dead zone ed expo sono in percentuale. La preview canali usa gi&agrave; la stessa pipeline del PPM e include sia gli assi HID sia gli ingressi ADC.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-bottom:14px;">
+      <h2>Assi e Ingressi Analogici</h2>
+      <div id="axesGrid" class="grid axis-grid"></div>
+    </section>
+
+    <section class="row">
+      <div class="col">
+        <div class="card">
+          <h3>Pulsanti</h3>
+          <div id="buttonsGrid" class="button-grid"></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card">
+          <h3>Canali PPM Preview</h3>
+          <div id="channelsPreview" class="grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:14px;">
+      <h2>Calibrazione Assi e ADC</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Asse</th>
+              <th>Trim %</th>
+              <th>Dead zone %</th>
+              <th>Expo %</th>
+              <th>Min calib</th>
+              <th>Max calib</th>
+            </tr>
+          </thead>
+          <tbody id="axisConfigRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:14px;">
+      <h2>Mappatura Canali</h2>
+      <p class="note">Ogni canale pu&ograve; usare una sorgente diretta da joypad, pulsante o ingresso ADC, oppure una logica step, latch o selector basata sui pulsanti del controller.</p>
+      <div id="channelEditors" class="grid channel-editor-grid"></div>
+    </section>
+  </main>
+
+  <script>
+    const PPM_MIN_US = 900;
+    const PPM_CENTER_US = 1500;
+    const PPM_MAX_US = 2100;
+    const PPM_SPAN_US = PPM_MAX_US - PPM_MIN_US;
+
+    const CHANNEL_MODE_OPTIONS = [
+      { value: "source", label: "Source" },
+      { value: "stepper", label: "Step" },
+      { value: "latch", label: "Latch" },
+      { value: "selector", label: "Selector" }
+    ];
+
+    const appState = {
+      config: null,
+      live: null,
+      pollTimer: null,
+      pollInFlight: false,
+      lastLiveRenderKey: "",
+      calibration: {
+        active: false,
+        ranges: {}
+      }
+    };
+
+    const elements = {
+      apName: document.getElementById("apName"),
+      linkState: document.getElementById("linkState"),
+      saveState: document.getElementById("saveState"),
+      deviceMeta: document.getElementById("deviceMeta"),
+      statusBox: document.getElementById("statusBox"),
+      axesGrid: document.getElementById("axesGrid"),
+      buttonsGrid: document.getElementById("buttonsGrid"),
+      channelsPreview: document.getElementById("channelsPreview"),
+      axisConfigRows: document.getElementById("axisConfigRows"),
+      channelEditors: document.getElementById("channelEditors"),
+      backupBtn: document.getElementById("backupBtn"),
+      restoreBtn: document.getElementById("restoreBtn"),
+      restoreFile: document.getElementById("restoreFile"),
+      saveBtn: document.getElementById("saveBtn"),
+      zeroBtn: document.getElementById("zeroBtn"),
+      calibrateBtn: document.getElementById("calibrateBtn"),
+      resetCalibrationBtn: document.getElementById("resetCalibrationBtn"),
+      resetBtn: document.getElementById("resetBtn")
+    };
+
+    function setStatus(message, isError = false) {
+      elements.statusBox.textContent = message || "";
+      elements.statusBox.style.color = isError ? "#b91c1c" : "#6b7280";
+    }
+
+    async function requestJson(url, options) {
+      const response = await fetch(url, options);
+      const text = await response.text();
+      let payload = null;
+
+      if (text) {
+        try {
+          payload = JSON.parse(text);
+        } catch (error) {
+          payload = null;
+        }
+      }
+
+      if (!response.ok) {
+        throw new Error((payload && payload.error) || `HTTP ${response.status}`);
+      }
+      return payload;
+    }
+
+    function parseFilenameFromDisposition(disposition) {
+      if (!disposition) {
+        return "esp32-s3-joy-config-backup.json";
+      }
+
+      const match = disposition.match(/filename="?([^"]+)"?/i);
+      return (match && match[1]) || "esp32-s3-joy-config-backup.json";
+    }
+
+    function numberInput(id, value, min, max, extraAttributes = "") {
+      return `<input id="${id}" type="number" min="${min}" max="${max}" value="${value}" ${extraAttributes}>`;
+    }
+
+    function checkboxInput(id, checked) {
+      return `<input id="${id}" type="checkbox" ${checked ? "checked" : ""}>`;
+    }
+
+    function selectInput(id, currentValue, options, extraAttributes = "") {
+      return `<select id="${id}" ${extraAttributes}>${options.map((option) => {
+        const selected = option.value === currentValue ? "selected" : "";
+        return `<option value="${option.value}" ${selected}>${option.label}</option>`;
+      }).join("")}</select>`;
+    }
+
+    function toInt(value, fallback) {
+      const parsed = parseInt(value, 10);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function getSelectorEntryLimit() {
+      return (appState.config && appState.config.app && appState.config.app.selectorEntryCount) || 8;
+    }
+
+    function defaultStepper() {
+      return {
+        upButton: "none",
+        downButton: "none",
+        stepPulse: 25,
+        minPulse: PPM_MIN_US,
+        maxPulse: PPM_MAX_US,
+        initialPulse: PPM_CENTER_US
+      };
+    }
+
+    function defaultLatch() {
+      return {
+        button: "none",
+        activePulse: PPM_MAX_US,
+        resetPulse: PPM_CENTER_US
+      };
+    }
+
+    function defaultSelectorEntry() {
+      return {
+        button: "none",
+        pulse: PPM_CENTER_US
+      };
+    }
+
+    function normalizeAxis(axis) {
+      return {
+        ...axis,
+        trim: toInt(axis && axis.trim, 0),
+        deadZone: toInt(axis && axis.deadZone, 0),
+        expo: toInt(axis && axis.expo, 0),
+        analog: !!(axis && axis.analog),
+        calibrationMin: toInt(axis && axis.calibrationMin, 0),
+        calibrationMax: toInt(axis && axis.calibrationMax, 0)
+      };
+    }
+
+    function normalizeSelectorEntries(entries) {
+      return (Array.isArray(entries) ? entries : [])
+        .slice(0, getSelectorEntryLimit())
+        .map((entry) => ({
+          ...defaultSelectorEntry(),
+          ...entry,
+          pulse: toInt(entry && entry.pulse, PPM_CENTER_US)
+        }));
+    }
+
+    function normalizeChannel(channel, index) {
+      const selector = (channel && channel.selector) || {};
+      return {
+        index: (channel && channel.index) || (index + 1),
+        mode: (channel && channel.mode) || "source",
+        modeLabel: (channel && channel.modeLabel) || "Source",
+        source: (channel && channel.source) || "none",
+        invert: !!(channel && channel.invert),
+        failsafePulse: toInt(channel && channel.failsafePulse, PPM_CENTER_US),
+        stepper: {
+          ...defaultStepper(),
+          ...((channel && channel.stepper) || {}),
+          stepPulse: toInt(channel && channel.stepper && channel.stepper.stepPulse, 25),
+          minPulse: toInt(channel && channel.stepper && channel.stepper.minPulse, PPM_MIN_US),
+          maxPulse: toInt(channel && channel.stepper && channel.stepper.maxPulse, PPM_MAX_US),
+          initialPulse: toInt(channel && channel.stepper && channel.stepper.initialPulse, PPM_CENTER_US)
+        },
+        latch: {
+          ...defaultLatch(),
+          ...((channel && channel.latch) || {}),
+          activePulse: toInt(channel && channel.latch && channel.latch.activePulse, PPM_MAX_US),
+          resetPulse: toInt(channel && channel.latch && channel.latch.resetPulse, PPM_CENTER_US)
+        },
+        selector: {
+          defaultPulse: toInt(selector.defaultPulse, PPM_CENTER_US),
+          entries: normalizeSelectorEntries(selector.entries)
+        }
+      };
+    }
+
+    function normalizeConfig(config) {
+      if (!config) {
+        return null;
+      }
+
+      return {
+        ...config,
+        axes: (config.axes || []).map(normalizeAxis),
+        channels: (config.channels || []).map((channel, index) => normalizeChannel(channel, index))
+      };
+    }
+
+    function getButtonOptions() {
+      const buttonCount = (appState.config && appState.config.app && appState.config.app.buttonCount) || 0;
+      return [{ value: "none", label: "Nessuno" }].concat(
+        Array.from({ length: buttonCount }, (_, index) => ({
+          value: `button${index + 1}`,
+          label: `Button ${index + 1}`
+        }))
+      );
+    }
+
+    function getSourceOptions() {
+      if (!appState.config) {
+        return [{ value: "none", label: "Nessuno" }];
+      }
+
+      return [{ value: "none", label: "Nessuno" }]
+        .concat(appState.config.axes.map((axis) => ({ value: axis.id, label: axis.label })))
+        .concat(getButtonOptions().filter((option) => option.value !== "none"));
+    }
+
+    function channelModeHelp(mode) {
+      switch (mode) {
+        case "stepper":
+          return "Due pulsanti incrementano o decrementano il canale a step fissi tra min e max.";
+        case "latch":
+          return "Un pulsante alterna il valore attivo con il valore di reset del canale.";
+        case "selector":
+          return "Ogni pulsante imposta un valore PPM e il canale lo mantiene finch&eacute; non arriva una nuova selezione.";
+        case "source":
+        default:
+          return "Mappatura diretta di un asse HID, ingresso ADC o pulsante del controller al canale PPM.";
+      }
+    }
+
+    function selectorEntriesMarkup(channel, index, buttonOptions) {
+      if (!channel.selector.entries.length) {
+        return `<div class="selector-empty">Nessuna voce configurata. Aggiungi un pulsante per impostare un valore PPM.</div>`;
+      }
+
+      return `
+        <div class="selector-list">
+          ${channel.selector.entries.map((entry, entryIndex) => `
+            <div class="selector-row">
+              <div class="field">
+                <label>Pulsante ${entryIndex + 1}</label>
+                ${selectInput(`channel-selector-button-${index}-${entryIndex}`, entry.button, buttonOptions)}
+              </div>
+              <div class="field">
+                <label>Pulse us</label>
+                ${numberInput(`channel-selector-pulse-${index}-${entryIndex}`, entry.pulse, PPM_MIN_US, PPM_MAX_US)}
+              </div>
+              <button
+                class="btn btn-danger btn-small"
+                type="button"
+                data-channel-action="remove-selector-entry"
+                data-channel-index="${index}"
+                data-entry-index="${entryIndex}">Rimuovi</button>
+            </div>
+          `).join("")}
+        </div>
+      `;
+    }
+
+    function channelModeFieldsMarkup(channel, index, sourceOptions, buttonOptions) {
+      switch (channel.mode) {
+        case "stepper":
+          return `
+            <div class="field">
+              <label>Pulsante Up</label>
+              ${selectInput(`channel-stepper-up-${index}`, channel.stepper.upButton, buttonOptions)}
+            </div>
+            <div class="field">
+              <label>Pulsante Down</label>
+              ${selectInput(`channel-stepper-down-${index}`, channel.stepper.downButton, buttonOptions)}
+            </div>
+            <div class="field">
+              <label>Step us</label>
+              ${numberInput(`channel-stepper-step-${index}`, channel.stepper.stepPulse, 1, PPM_SPAN_US)}
+            </div>
+            <div class="field">
+              <label>Pulse iniziale us</label>
+              ${numberInput(`channel-stepper-initial-${index}`, channel.stepper.initialPulse, PPM_MIN_US, PPM_MAX_US)}
+            </div>
+            <div class="field">
+              <label>Pulse minimo us</label>
+              ${numberInput(`channel-stepper-min-${index}`, channel.stepper.minPulse, PPM_MIN_US, PPM_MAX_US)}
+            </div>
+            <div class="field">
+              <label>Pulse massimo us</label>
+              ${numberInput(`channel-stepper-max-${index}`, channel.stepper.maxPulse, PPM_MIN_US, PPM_MAX_US)}
+            </div>
+          `;
+        case "latch":
+          return `
+            <div class="field">
+              <label>Pulsante latch</label>
+              ${selectInput(`channel-latch-button-${index}`, channel.latch.button, buttonOptions)}
+            </div>
+            <div class="field">
+              <label>Pulse attivo us</label>
+              ${numberInput(`channel-latch-active-${index}`, channel.latch.activePulse, PPM_MIN_US, PPM_MAX_US)}
+            </div>
+            <div class="field">
+              <label>Pulse reset us</label>
+              ${numberInput(`channel-latch-reset-${index}`, channel.latch.resetPulse, PPM_MIN_US, PPM_MAX_US)}
+            </div>
+          `;
+        case "selector": {
+          const canAddEntry = channel.selector.entries.length < getSelectorEntryLimit();
+          return `
+            <div class="field">
+              <label>Pulse default us</label>
+              ${numberInput(`channel-selector-default-${index}`, channel.selector.defaultPulse, PPM_MIN_US, PPM_MAX_US)}
+            </div>
+            <div class="field field-span-2">
+              <label>Voci selector</label>
+              ${selectorEntriesMarkup(channel, index, buttonOptions)}
+            </div>
+            <div class="field field-span-2">
+              <button
+                class="btn btn-secondary btn-small"
+                type="button"
+                data-channel-action="add-selector-entry"
+                data-channel-index="${index}"
+                ${canAddEntry ? "" : "disabled"}>Aggiungi voce</button>
+            </div>
+          `;
+        }
+        case "source":
+        default:
+          return `
+            <div class="field">
+              <label>Sorgente</label>
+              ${selectInput(`channel-source-${index}`, channel.source, sourceOptions)}
+            </div>
+            <div class="field">
+              <label>Inverti</label>
+              ${checkboxInput(`channel-invert-${index}`, channel.invert)}
+            </div>
+          `;
+      }
+    }
+
+    function renderAxisEditors() {
+      elements.axisConfigRows.innerHTML = appState.config.axes.map((axis, index) => `
+        <tr>
+          <td><strong>${axis.label}</strong><br><span class="note">${axis.id}${axis.analog ? " | ADC" : ""}</span></td>
+          <td>${numberInput(`axis-trim-${index}`, axis.trim, -100, 100)}</td>
+          <td>${numberInput(`axis-dead-${index}`, axis.deadZone, 0, 95)}</td>
+          <td>${numberInput(`axis-expo-${index}`, axis.expo, -100, 100)}</td>
+          <td>${numberInput(`axis-cal-min-${index}`, axis.calibrationMin, -65535, 65535, axis.analog ? "" : "disabled")}</td>
+          <td>${numberInput(`axis-cal-max-${index}`, axis.calibrationMax, -65535, 65535, axis.analog ? "" : "disabled")}</td>
+        </tr>
+      `).join("");
+
+      elements.calibrateBtn.textContent = appState.calibration.active ? "Ferma e salva calibrazione" : "Calibra ADC";
+      elements.calibrateBtn.className = appState.calibration.active ? "btn btn-primary" : "btn btn-secondary";
+    }
+
+    function renderChannelEditors() {
+      const sourceOptions = getSourceOptions();
+      const buttonOptions = getButtonOptions();
+      const liveChannels = (appState.live && appState.live.channels) || [];
+
+      elements.channelEditors.innerHTML = appState.config.channels.map((channel, index) => {
+        const liveChannel = liveChannels[index];
+        const badgeClass = liveChannel && !liveChannel.usingFailsafe ? "badge-ok" : "badge-warn";
+        const badgeText = liveChannel ? `${liveChannel.pulse} us` : `${channel.failsafePulse} us`;
+        const modeLabel = (CHANNEL_MODE_OPTIONS.find((option) => option.value === channel.mode) || {}).label || "Source";
+        return `
+          <article class="channel-editor">
+            <div class="channel-editor-header">
+              <div class="channel-editor-title">
+                <strong>CH${channel.index}</strong>
+                <span class="note">${modeLabel}</span>
+              </div>
+              <span class="badge ${badgeClass}">${badgeText}</span>
+            </div>
+            <div class="channel-fields">
+              <div class="field">
+                <label>Modalit&agrave;</label>
+                ${selectInput(`channel-mode-${index}`, channel.mode, CHANNEL_MODE_OPTIONS, `data-channel-mode="${index}"`)}
+              </div>
+              <div class="field">
+                <label>Failsafe us</label>
+                ${numberInput(`channel-failsafe-${index}`, channel.failsafePulse, PPM_MIN_US, PPM_MAX_US)}
+              </div>
+              <div class="field field-span-2">
+                <p class="mode-help">${channelModeHelp(channel.mode)}</p>
+              </div>
+              ${channelModeFieldsMarkup(channel, index, sourceOptions, buttonOptions)}
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function ensureEditors() {
+      if (!appState.config) {
+        return;
+      }
+
+      renderAxisEditors();
+      renderChannelEditors();
+    }
+
+    function renderStatus() {
+      const config = appState.config;
+      const live = appState.live;
+      const network = config && config.network;
+
+      if (network) {
+        const modeLabel = (network.mode || "wifi").toUpperCase();
+        elements.apName.textContent = `${modeLabel} ${network.ssid || "-"}`;
+      } else if (config) {
+        elements.apName.textContent = `AP ${config.ap.ssid}`;
+      }
+
+      if (!live || !live.connected) {
+        elements.linkState.className = "badge badge-off";
+        elements.linkState.textContent = "Dispositivo assente";
+        const networkText = network ? `WiFi ${network.ip || "-"}` : "";
+        elements.deviceMeta.textContent = `Collega un joypad HID USB alla porta nativa dell'ESP32-S3.${networkText ? ` ${networkText}` : ""}`;
+      } else {
+        elements.linkState.className = "badge badge-ok";
+        elements.linkState.textContent = "Dispositivo connesso";
+        const networkText = network ? ` | WiFi ${network.ip || "-"}` : "";
+        elements.deviceMeta.textContent = `Addr ${live.device.address} | Iface ${live.device.interface} | Proto ${live.device.protocol} | Update ${live.sequence}${networkText}`;
+      }
+
+      if (live && live.failsafeActive) {
+        elements.linkState.className = "badge badge-warn";
+        elements.linkState.textContent = "Failsafe attivo";
+      }
+
+      if (config) {
+        elements.saveState.className = config.storageOk ? "badge badge-ok" : "badge badge-warn";
+        elements.saveState.textContent = config.storageOk ? "Config persistente OK" : "FS/config non disponibili";
+      }
+    }
+
+    function renderAxes() {
+      const axes = (appState.live && appState.live.axes) || [];
+      elements.axesGrid.innerHTML = axes.map((axis) => {
+        const rawText = axis.present ? axis.raw : "-";
+        const normText = axis.present ? axis.normalized.toFixed(3) : "-";
+        const processedText = axis.present ? axis.processed.toFixed(3) : "-";
+        const width = axis.present ? Math.max(0, Math.min(100, ((axis.processed + 1) * 50))) : 0;
+        return `
+          <article class="axis-card">
+            <div class="axis-header">
+              <strong>${axis.label}</strong>
+              <span class="badge ${axis.present ? "badge-ok" : "badge-off"}">${axis.present ? "live" : "n/a"}</span>
+            </div>
+            <div class="axis-meta">
+              <span>raw ${rawText}</span>
+              <span>${axis.logicalMin} .. ${axis.logicalMax}</span>
+            </div>
+            <div class="meter"><span style="width:${width}%;"></span></div>
+            <div class="meter-label">
+              <span>norm ${normText}</span>
+              <span>out ${processedText}</span>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderButtons() {
+      const live = appState.live;
+      const fallbackCount = (appState.config && appState.config.app && appState.config.app.buttonCount) || 16;
+      const buttons = (live && live.buttons) || Array.from({ length: fallbackCount }, () => false);
+      elements.buttonsGrid.innerHTML = buttons.map((pressed, index) => `
+        <div class="button-pill ${pressed ? "active" : ""}">B${index + 1}</div>
+      `).join("");
+    }
+
+    function renderChannels() {
+      const channels = (appState.live && appState.live.channels) || [];
+      elements.channelsPreview.innerHTML = channels.map((channel) => `
+        <div class="axis-card">
+          <div class="axis-header">
+            <strong>CH${channel.index}</strong>
+            <span class="badge ${channel.usingFailsafe ? "badge-warn" : "badge-ok"}">${channel.pulse} us</span>
+          </div>
+          <div class="subline">${channel.modeLabel} | ${channel.detailLabel}${channel.invert ? " | invertito" : ""}${channel.usingFailsafe ? ` | failsafe ${channel.failsafePulse} us` : ""}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderAll() {
+      renderStatus();
+      renderAxes();
+      renderButtons();
+      renderChannels();
+    }
+
+    function getInput(id) {
+      return document.getElementById(id);
+    }
+
+    function getValue(id, fallback) {
+      const input = getInput(id);
+      return input ? input.value : fallback;
+    }
+
+    function getChecked(id, fallback) {
+      const input = getInput(id);
+      return input ? input.checked : fallback;
+    }
+
+    function getNumber(id, fallback) {
+      return toInt(getValue(id, String(fallback)), fallback);
+    }
+
+    function readEditorsIntoConfig() {
+      if (!appState.config) {
+        return;
+      }
+
+      appState.config.axes = appState.config.axes.map((axis, index) => ({
+        ...axis,
+        trim: getNumber(`axis-trim-${index}`, axis.trim),
+        deadZone: getNumber(`axis-dead-${index}`, axis.deadZone),
+        expo: getNumber(`axis-expo-${index}`, axis.expo),
+        calibrationMin: axis.analog ? getNumber(`axis-cal-min-${index}`, axis.calibrationMin) : axis.calibrationMin,
+        calibrationMax: axis.analog ? getNumber(`axis-cal-max-${index}`, axis.calibrationMax) : axis.calibrationMax
+      }));
+
+      appState.config.channels = appState.config.channels.map((channel, index) => {
+        const next = normalizeChannel(channel, index);
+        next.mode = getValue(`channel-mode-${index}`, next.mode);
+        next.source = getValue(`channel-source-${index}`, next.source);
+        next.invert = getChecked(`channel-invert-${index}`, next.invert);
+        next.failsafePulse = getNumber(`channel-failsafe-${index}`, next.failsafePulse);
+        next.stepper = {
+          ...next.stepper,
+          upButton: getValue(`channel-stepper-up-${index}`, next.stepper.upButton),
+          downButton: getValue(`channel-stepper-down-${index}`, next.stepper.downButton),
+          stepPulse: getNumber(`channel-stepper-step-${index}`, next.stepper.stepPulse),
+          minPulse: getNumber(`channel-stepper-min-${index}`, next.stepper.minPulse),
+          maxPulse: getNumber(`channel-stepper-max-${index}`, next.stepper.maxPulse),
+          initialPulse: getNumber(`channel-stepper-initial-${index}`, next.stepper.initialPulse)
+        };
+        next.latch = {
+          ...next.latch,
+          button: getValue(`channel-latch-button-${index}`, next.latch.button),
+          activePulse: getNumber(`channel-latch-active-${index}`, next.latch.activePulse),
+          resetPulse: getNumber(`channel-latch-reset-${index}`, next.latch.resetPulse)
+        };
+        next.selector = {
+          defaultPulse: getNumber(`channel-selector-default-${index}`, next.selector.defaultPulse),
+          entries: next.selector.entries.map((entry, entryIndex) => ({
+            button: getValue(`channel-selector-button-${index}-${entryIndex}`, entry.button),
+            pulse: getNumber(`channel-selector-pulse-${index}-${entryIndex}`, entry.pulse)
+          }))
+        };
+        return next;
+      });
+    }
+
+    function buildPayload() {
+      readEditorsIntoConfig();
+      return {
+        axes: appState.config.axes.map((axis) => ({
+          id: axis.id,
+          trim: axis.trim,
+          deadZone: axis.deadZone,
+          expo: axis.expo,
+          calibrationMin: axis.calibrationMin,
+          calibrationMax: axis.calibrationMax
+        })),
+        channels: appState.config.channels.map((channel, index) => ({
+          index: channel.index || (index + 1),
+          mode: channel.mode,
+          source: channel.source,
+          invert: channel.invert,
+          failsafePulse: channel.failsafePulse,
+          stepper: {
+            upButton: channel.stepper.upButton,
+            downButton: channel.stepper.downButton,
+            stepPulse: channel.stepper.stepPulse,
+            minPulse: channel.stepper.minPulse,
+            maxPulse: channel.stepper.maxPulse,
+            initialPulse: channel.stepper.initialPulse
+          },
+          latch: {
+            button: channel.latch.button,
+            activePulse: channel.latch.activePulse,
+            resetPulse: channel.latch.resetPulse
+          },
+          selector: {
+            defaultPulse: channel.selector.defaultPulse,
+            entries: channel.selector.entries.map((entry) => ({
+              button: entry.button,
+              pulse: entry.pulse
+            }))
+          }
+        }))
+      };
+    }
+
+    function rerenderEditors(mutator) {
+      if (!appState.config) {
+        return;
+      }
+
+      readEditorsIntoConfig();
+      if (typeof mutator === "function") {
+        mutator(appState.config);
+      }
+      appState.config = normalizeConfig(appState.config);
+      ensureEditors();
+      renderAll();
+    }
+
+    async function loadConfig() {
+      appState.config = normalizeConfig(await requestJson("/api/config"));
+      ensureEditors();
+      renderAll();
+    }
+
+    function liveRenderKey(live) {
+      if (!live) {
+        return "";
+      }
+      return [
+        live.sequence || 0,
+        live.analogSequence || 0,
+        live.configRevision || 0,
+        live.connected ? 1 : 0,
+        live.failsafeActive ? 1 : 0
+      ].join(":");
+    }
+
+    async function refreshState(forceRender = false) {
+      if (appState.pollInFlight) {
+        return;
+      }
+
+      appState.pollInFlight = true;
+      try {
+        appState.live = await requestJson("/api/state");
+      } finally {
+        appState.pollInFlight = false;
+      }
+
+      updateActiveCalibration();
+      const nextRenderKey = liveRenderKey(appState.live);
+      if (forceRender || appState.calibration.active || nextRenderKey !== appState.lastLiveRenderKey) {
+        appState.lastLiveRenderKey = nextRenderKey;
+        window.requestAnimationFrame(renderAll);
+      }
+    }
+
+    async function saveConfig() {
+      if (!appState.config) {
+        return;
+      }
+
+      setStatus("Salvataggio config...");
+      const response = await requestJson("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildPayload())
+      });
+      appState.config = normalizeConfig(response);
+      ensureEditors();
+      renderAll();
+      setStatus("Config salvata.");
+      await refreshState(true);
+    }
+
+    async function downloadBackup() {
+      setStatus("Preparazione backup...");
+      const response = await fetch("/api/config/backup");
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const filename = parseFilenameFromDisposition(response.headers.get("Content-Disposition"));
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      setStatus("Backup scaricato.");
+    }
+
+    function selectRestoreFile() {
+      elements.restoreFile.value = "";
+      elements.restoreFile.click();
+    }
+
+    async function restoreBackupFile(file) {
+      if (!file) {
+        return;
+      }
+
+      setStatus("Ripristino backup e riavvio firmware...");
+      const response = await requestJson("/api/config/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: await file.text()
+      });
+
+      if (!response || !response.ok) {
+        setStatus("Backup ripristinato.");
+      } else {
+        setStatus("Backup ripristinato. Riavvio in corso...");
+      }
+
+      if (appState.pollTimer) {
+        clearInterval(appState.pollTimer);
+        appState.pollTimer = null;
+      }
+
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 4000);
+    }
+
+    async function zeroConfig() {
+      setStatus("Calcolo trim dalla posizione attuale...");
+      appState.config = normalizeConfig(await requestJson("/api/config/zero", { method: "POST" }));
+      ensureEditors();
+      renderAll();
+      setStatus("Trim aggiornati usando i valori correnti.");
+      await refreshState(true);
+    }
+
+    async function resetConfig() {
+      setStatus("Ripristino default...");
+      appState.config = normalizeConfig(await requestJson("/api/config/reset", { method: "POST" }));
+      ensureEditors();
+      renderAll();
+      setStatus("Config riportata ai valori iniziali.");
+      await refreshState(true);
+    }
+
+    function liveAxisById(axisId) {
+      const axes = (appState.live && appState.live.axes) || [];
+      return axes.find((axis) => axis.id === axisId);
+    }
+
+    function updateActiveCalibration() {
+      if (!appState.calibration.active || !appState.config || !appState.live) {
+        return;
+      }
+
+      let changed = false;
+      appState.config.axes = appState.config.axes.map((axis) => {
+        if (!axis.analog) {
+          return axis;
+        }
+
+        const liveAxis = liveAxisById(axis.id);
+        if (!liveAxis || !liveAxis.present) {
+          return axis;
+        }
+
+        const raw = toInt(liveAxis.raw, 0);
+        const hasRange = !!appState.calibration.ranges[axis.id] ||
+          axis.calibrationMin !== 0 ||
+          axis.calibrationMax !== 0;
+        const currentMin = hasRange ? axis.calibrationMin : raw;
+        const currentMax = hasRange ? axis.calibrationMax : raw;
+        const nextMin = Math.min(currentMin, raw);
+        const nextMax = Math.max(currentMax, raw);
+        appState.calibration.ranges[axis.id] = true;
+        if (nextMin === axis.calibrationMin && nextMax === axis.calibrationMax) {
+          return axis;
+        }
+
+        changed = true;
+        return {
+          ...axis,
+          calibrationMin: nextMin,
+          calibrationMax: nextMax
+        };
+      });
+
+      if (changed) {
+        renderAxisEditors();
+      }
+    }
+
+    async function toggleAdcCalibration() {
+      if (!appState.config) {
+        return;
+      }
+
+      if (appState.calibration.active) {
+        appState.calibration.active = false;
+        appState.calibration.ranges = {};
+        renderAxisEditors();
+        setStatus("Salvataggio calibrazione ADC...");
+        await saveConfig();
+        setStatus("Calibrazione ADC salvata.");
+        return;
+      }
+
+      readEditorsIntoConfig();
+      appState.calibration.active = true;
+      appState.calibration.ranges = {};
+      appState.config.axes = appState.config.axes.map((axis) => {
+        if (!axis.analog) {
+          return axis;
+        }
+        const liveAxis = liveAxisById(axis.id);
+        if (!liveAxis || !liveAxis.present) {
+          return axis;
+        }
+        const raw = toInt(liveAxis.raw, 0);
+        appState.calibration.ranges[axis.id] = true;
+        return {
+          ...axis,
+          calibrationMin: raw,
+          calibrationMax: raw
+        };
+      });
+      renderAxisEditors();
+      setStatus("Calibrazione ADC attiva: muovi gli ingressi fino ai fine corsa, poi premi di nuovo.");
+    }
+
+    async function resetAdcCalibration() {
+      if (!appState.config) {
+        return;
+      }
+
+      appState.calibration.active = false;
+      appState.calibration.ranges = {};
+      readEditorsIntoConfig();
+      appState.config.axes = appState.config.axes.map((axis) => axis.analog ? {
+        ...axis,
+        calibrationMin: 0,
+        calibrationMax: 0
+      } : axis);
+      ensureEditors();
+      setStatus("Salvataggio reset calibrazione ADC...");
+      await saveConfig();
+      setStatus("Calibrazione ADC riportata al range teorico.");
+    }
+
+    function handleChannelEditorChange(event) {
+      if (!appState.config || !event.target.matches("[data-channel-mode]")) {
+        return;
+      }
+
+      const channelIndex = toInt(event.target.dataset.channelMode, -1);
+      if (channelIndex < 0) {
+        return;
+      }
+
+      rerenderEditors((config) => {
+        config.channels[channelIndex].mode = event.target.value;
+      });
+    }
+
+    function handleChannelEditorClick(event) {
+      if (!appState.config) {
+        return;
+      }
+
+      const actionButton = event.target.closest("button[data-channel-action]");
+      if (!actionButton) {
+        return;
+      }
+
+      const action = actionButton.dataset.channelAction;
+      const channelIndex = toInt(actionButton.dataset.channelIndex, -1);
+      const entryIndex = toInt(actionButton.dataset.entryIndex, -1);
+      if (channelIndex < 0 || channelIndex >= appState.config.channels.length) {
+        return;
+      }
+
+      rerenderEditors((config) => {
+        const channel = config.channels[channelIndex];
+        if (!channel.selector || !Array.isArray(channel.selector.entries)) {
+          channel.selector = {
+            defaultPulse: PPM_CENTER_US,
+            entries: []
+          };
+        }
+
+        if (action === "add-selector-entry" &&
+            channel.selector.entries.length < getSelectorEntryLimit()) {
+          channel.selector.entries.push(defaultSelectorEntry());
+        }
+
+        if (action === "remove-selector-entry" &&
+            entryIndex >= 0 &&
+            entryIndex < channel.selector.entries.length) {
+          channel.selector.entries.splice(entryIndex, 1);
+        }
+      });
+    }
+
+    async function boot() {
+      try {
+        await loadConfig();
+        await refreshState(true);
+        const pollMs = (appState.config && appState.config.app && appState.config.app.pollMs) || 80;
+        appState.pollTimer = setInterval(() => {
+          refreshState().catch((error) => {
+            setStatus(`Polling fallito: ${error.message}`, true);
+          });
+        }, pollMs);
+      } catch (error) {
+        setStatus(`Avvio interfaccia fallito: ${error.message}`, true);
+      }
+    }
+
+    elements.saveBtn.addEventListener("click", () => {
+      saveConfig().catch((error) => setStatus(`Salvataggio fallito: ${error.message}`, true));
+    });
+
+    elements.backupBtn.addEventListener("click", () => {
+      downloadBackup().catch((error) => setStatus(`Backup fallito: ${error.message}`, true));
+    });
+
+    elements.restoreBtn.addEventListener("click", () => {
+      selectRestoreFile();
+    });
+
+    elements.restoreFile.addEventListener("change", (event) => {
+      const file = event.target.files && event.target.files[0];
+      restoreBackupFile(file).catch((error) => setStatus(`Restore fallito: ${error.message}`, true));
+    });
+
+    elements.zeroBtn.addEventListener("click", () => {
+      zeroConfig().catch((error) => setStatus(`Azzera fallito: ${error.message}`, true));
+    });
+
+    elements.calibrateBtn.addEventListener("click", () => {
+      toggleAdcCalibration().catch((error) => setStatus(`Calibrazione fallita: ${error.message}`, true));
+    });
+
+    elements.resetCalibrationBtn.addEventListener("click", () => {
+      resetAdcCalibration().catch((error) => setStatus(`Reset calibrazione fallito: ${error.message}`, true));
+    });
+
+    elements.resetBtn.addEventListener("click", () => {
+      resetConfig().catch((error) => setStatus(`Reset fallito: ${error.message}`, true));
+    });
+
+    elements.channelEditors.addEventListener("change", handleChannelEditorChange);
+    elements.channelEditors.addEventListener("click", handleChannelEditorClick);
+
+    boot();
+  </script>
+</body>
+</html>
