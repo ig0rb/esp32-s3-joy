@@ -15,6 +15,8 @@ Firmware per ESP32-S3 che consente di collegare un joypad USB e convertirne gli 
 - **Canali avanzati**: Ogni canale puo' essere configurato come `source`, `stepper`, `latch` o `selector`.
 - **Modalità Wi-Fi**: Supporto AP/STA, gestione retry e logging eventi di rete.
 
+- ** Guarda il  Tutorial https://www.youtube.com/watch?v=fgsrTr5DBP4
+
 ## Struttura del progetto
 
 - `src/` — Codice sorgente principale (logica, stato, parsing HID, output PPM, web server)
